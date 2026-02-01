@@ -29,7 +29,8 @@ A powerful Obsidian plugin that integrates the full Monaco Editor (VS Code's edi
 - **Edit Code Blocks**: Right-click any markdown code block to edit in full Monaco editor
 - **Link Previews**: Hover over code file links to see previews
 - **Font Ligatures**: Support for programming fonts like Fira Code
-- **Auto Blank Lines**: New files start with 30 lines for easy navigation (trimmed on save)
+- **Tabbed Settings**: Organized settings UI (General, Editor, Formatting, Theme)
+- **Live Updates**: 10+ settings apply instantly without reopening files
 
 ## 📦 Installation
 
@@ -71,7 +72,7 @@ The plugin automatically handles these file types:
 | **Scripting** | `.php`, `.rb`, `.lua`, `.pl`, `.r`, `.sh`, `.bash`, `.zsh`, `.ps1` |
 | **Config/Data** | `.yaml`, `.yml`, `.toml`, `.ini`, `.conf`, `.sql` |
 | **Functional** | `.ex`, `.exs`, `.erl`, `.clj`, `.hs`, `.ml`, `.fs` |
-| **Other** | `.md`, `.markdown`, `.vb` |
+| **Other** | `.vb` |
 
 ### Creating New Files
 
@@ -109,32 +110,41 @@ Select your theme.json file
 
 ## ⚙️ Settings
 
-### Editor Settings
-- **Font Family**: Customize editor font (supports ligatures)
-- **Font Size**: Adjustable text size (also `Ctrl+Scroll`)
-- **Font Ligatures**: Enable programming font ligatures
-- **Line Numbers**: Show/hide line numbers
-- **Minimap**: Code overview sidebar
-- **Word Wrap**: Wrap long lines
-- **Code Folding**: Collapse code blocks
+Settings are organized into 4 tabs for easy navigation:
 
-### Prettier Settings
+### General Tab
+- **File Extensions**: Configure which extensions open in Monaco
+- **Validation Options**: Semantic, syntax, and lightweight validation
+- **Link Previews**: Enable/disable code file link previews
+- **Auto-detect Language**: Automatically detect programming language
+
+### Editor Tab (Live Updates ✨)
+These settings apply instantly to all open editors:
+- **Font Family**: Customize editor font (supports ligatures)
+- **Font Size**: Adjustable text size (also `Ctrl+Scroll`) ⚡
+- **Font Ligatures**: Enable programming font ligatures ⚡
+- **Line Numbers**: Show/hide line numbers ⚡
+- **Minimap**: Code overview sidebar ⚡
+- **Word Wrap**: Wrap long lines ⚡
+- **Code Folding**: Collapse code blocks ⚡
+
+### Formatting Tab
 - **Format on Save**: Auto-format when saving
 - **Format on Type**: Real-time formatting (debounced)
-- **Tab Width**: Spaces per indentation level
+- **Tab Width**: Spaces per indentation level ⚡
 - **Use Tabs**: Use tabs instead of spaces
 - **Print Width**: Maximum line length
 - **Semi-colons**: Add/remove semicolons
 - **Single Quotes**: Use single vs double quotes
 - **Trailing Commas**: Add trailing commas in arrays/objects
+- **Bracket Spacing**: Spacing in object literals
+- **Arrow Parens**: Parentheses in arrow functions
 
-### Theme Settings
-- **Selected Theme**: Choose active theme
-- **Transparent Background**: Blend with Obsidian theme
-- **Custom Themes**: Import and manage themes
-
-### File Extensions
-Configure which extensions open in Monaco (requires restart after changes)
+### Theme Tab (Live Updates ✨)
+- **Selected Theme**: Choose active theme ⚡
+- **Transparent Background**: Blend with Obsidian theme ⚡
+- **Custom Theme Import**: Load JSON/VSIX themes from vault or marketplace
+- **Theme Persistence**: Imported themes saved across sessions
 
 ## 🎨 Available Themes
 
@@ -202,11 +212,12 @@ MIT License - see [LICENSE](LICENSE) file for details
 - **Obsidian** - The extensible knowledge base
 - **VS Code Community** - Theme ecosystem
 
-## 🐛 Known Issues
+## 🐛 Known Issues & Limitations
 
-- Theme importing requires manual plugin reload after import
-- Some Monaco features (debugging, extensions) are not available
-- Large files (>5MB) may experience performance degradation
+- **Monaco Features**: Some VS Code features (debugging, extensions, terminal) are not available
+- **Large Files**: Files >5MB may experience performance degradation
+- **Validation Scope**: Semantic/syntax validation is limited to TypeScript/JavaScript
+- **Markdown Conflict**: `.md` files excluded by default to avoid conflicts with Obsidian's native editor
 
 ## 📝 Changelog
 
