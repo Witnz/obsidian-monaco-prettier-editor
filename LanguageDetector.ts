@@ -480,6 +480,7 @@ export class LanguageDetector {
 			"json": "json",
 			"py": "python",
 			"pyw": "python",
+			"python": "python",  // Added for .python extension support (vscode-editor compatibility)
 			"java": "java",
 			"c": "c",
 			"cpp": "cpp",

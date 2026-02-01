@@ -144,7 +144,8 @@ export class VSIXThemeLoader {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"Accept": "application/json;api-version=3.0-preview.1",
+				"Accept": "application/json;api-version=7.1-preview.1",
+				"User-Agent": "Obsidian-Monaco-Editor/1.0.0",
 			},
 			body: JSON.stringify({
 				filters: [

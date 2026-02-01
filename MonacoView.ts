@@ -22,6 +22,7 @@ export class MonacoPrettierView extends TextFileView {
 	private formatOnTypeDisposable: monaco.IDisposable | null = null;
 	private static monacoConfigured = false;
 	private languageDetector: LanguageDetector;
+	private addedBlankLines = false; // Track if we added auto-blank-lines for empty files
 
 	constructor(leaf: WorkspaceLeaf, plugin: MonacoPrettierPlugin) {
 		super(leaf);
@@ -184,8 +185,12 @@ export class MonacoPrettierView extends TextFileView {
 		if (this.editor) {
 			// If file is empty or just whitespace, add blank lines for easier clicking
 			let content = data;
+			this.addedBlankLines = false; // Reset flag
+			
 			if (!data || data.trim().length === 0) {
 				content = '\n'.repeat(30); // Add 30 blank lines for new/empty files
+				this.addedBlankLines = true; // Mark that we added blank lines
+				console.log('Monaco Prettier: Added auto-blank-lines for empty file');
 			}
 			
 			if (clear) {
@@ -199,7 +204,22 @@ export class MonacoPrettierView extends TextFileView {
 	// TextFileView calls this to get the current content
 	getViewData(): string {
 		const content = this.editor?.getValue() ?? "";
-		// Trim trailing blank lines on save
+		
+		// Only return empty if:
+		// 1. We added the blank lines ourselves (addedBlankLines flag is true)
+		// 2. AND the content is still only whitespace (user didn't type anything)
+		if (this.addedBlankLines && content.trim().length === 0) {
+			console.log('Monaco Prettier: Returning empty (auto-blank-lines unchanged)');
+			return "";
+		}
+		
+		// If user typed something, clear the flag and save the content
+		if (this.addedBlankLines && content.trim().length > 0) {
+			this.addedBlankLines = false;
+			console.log('Monaco Prettier: User added content, disabling blank-lines flag');
+		}
+		
+		// For files with actual content, trim excessive trailing blank lines
 		return content.replace(/\n+$/, '\n');
 	}
 	
@@ -263,13 +283,22 @@ export class MonacoPrettierView extends TextFileView {
 			['[', 'editor.action.outdentLines'],
 			[']', 'editor.action.indentLines'],
 			['d', 'editor.action.copyLinesDownAction'],
+			['v', 'paste'], // Paste needs special clipboard handling
 		]);
 
 		if (event.ctrlKey && ctrlKeyMap.has(event.key)) {
 			event.preventDefault();
 			event.stopPropagation();
 			const action = ctrlKeyMap.get(event.key)!;
-			this.editor.trigger('keyboard', action, null);
+			
+			// Paste requires reading from clipboard
+			if (action === 'paste') {
+				navigator.clipboard.readText().then((text) => {
+					this.editor?.trigger('keyboard', 'paste', { text });
+				});
+			} else {
+				this.editor.trigger('keyboard', action, null);
+			}
 		}
 
 		// Alt+Z to toggle word wrap
