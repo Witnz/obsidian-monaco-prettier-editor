@@ -11,9 +11,20 @@ export default class MonacoPrettierPlugin extends Plugin {
 	settings: MonacoPrettierSettings;
 	themeManager: ThemeManager;
 	linkPreviewManager: LinkPreviewManager | null = null;
+	private logBuffer: string[] = [];
+	private originalConsole = {
+		log: console.log,
+		error: console.error,
+		warn: console.warn
+	};
 
 	async onload() {
 		await this.loadSettings();
+		
+		// Enable console logging to file if enabled in settings
+		if (this.settings.enableConsoleLogging) {
+			this.enableConsoleLogging();
+		}
 
 		// Initialize theme manager with save callback
 		this.themeManager = new ThemeManager(this.app, async () => {
@@ -138,6 +149,66 @@ export default class MonacoPrettierPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new MonacoPrettierSettingTab(this.app, this));
 	}
+	
+	private enableConsoleLogging() {
+		const logFilePath = 'monaco-prettier-console.log';
+		
+		const writeLog = async (level: string, ...args: any[]) => {
+			const timestamp = new Date().toISOString();
+			const message = args.map(arg => 
+				typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+			).join(' ');
+			
+			this.logBuffer.push(`[${timestamp}] [${level}] ${message}`);
+			
+			// Write to file every 10 logs or every 5 seconds
+			if (this.logBuffer.length >= 10) {
+				await this.flushLogs();
+			}
+		};
+		
+		// Override console methods
+		console.log = (...args: any[]) => {
+			this.originalConsole.log.apply(console, args);
+			writeLog('LOG', ...args);
+		};
+		
+		console.error = (...args: any[]) => {
+			this.originalConsole.error.apply(console, args);
+			writeLog('ERROR', ...args);
+		};
+		
+		console.warn = (...args: any[]) => {
+			this.originalConsole.warn.apply(console, args);
+			writeLog('WARN', ...args);
+		};
+		
+		// Flush logs periodically
+		this.registerInterval(
+			window.setInterval(() => this.flushLogs(), 5000)
+		);
+	}
+	
+	private async flushLogs() {
+		if (this.logBuffer.length === 0) return;
+		
+		try {
+			const logFilePath = 'monaco-prettier-console.log';
+			const logs = this.logBuffer.join('\n') + '\n';
+			this.logBuffer = [];
+			
+			// Append to existing file or create new
+			const fileExists = await this.app.vault.adapter.exists(logFilePath);
+			if (fileExists) {
+				const existing = await this.app.vault.adapter.read(logFilePath);
+				await this.app.vault.adapter.write(logFilePath, existing + logs);
+			} else {
+				await this.app.vault.adapter.write(logFilePath, logs);
+			}
+		} catch (error) {
+			this.originalConsole.error('Failed to write console logs:', error);
+		}
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -151,7 +222,15 @@ export default class MonacoPrettierPlugin extends Plugin {
 		return this.settings.fileExtensions.includes(extension);
 	}
 
-	onunload() {
+	async onunload() {
+		// Restore original console methods
+		console.log = this.originalConsole.log;
+		console.error = this.originalConsole.error;
+		console.warn = this.originalConsole.warn;
+		
+		// Flush remaining logs
+		await this.flushLogs();
+		
 		// Stop link preview manager
 		if (this.linkPreviewManager) {
 			this.linkPreviewManager.stop();

@@ -11,9 +11,10 @@ A powerful Obsidian plugin that integrates the full Monaco Editor (VS Code's edi
 ### 🎯 Core Capabilities
 - **Full Monaco Editor** - The complete VS Code editor experience in Obsidian
 - **60+ File Types** - JavaScript, TypeScript, Python, Java, C++, Go, Rust, and more
+- **Tree-sitter Parsing** - Professional-grade syntax parsing for JS/TS, Python, JSON, CSS, Go, Rust
 - **Prettier Integration** - Auto-format on save with full configuration support
 - **Custom Themes** - Import VS Code themes (JSON/VSIX) or use built-in presets
-- **YAML Validation** - Built-in validation for YAML files
+- **Advanced Validation** - Tree-sitter-powered syntax checking or lightweight validators
 - **Code Folding** - Collapse/expand code blocks
 - **Multi-cursor Editing** - VS Code-style multiple cursors
 - **IntelliSense** - Auto-completion and syntax checking
@@ -115,6 +116,7 @@ Settings are organized into 4 tabs for easy navigation:
 ### General Tab
 - **File Extensions**: Configure which extensions open in Monaco
 - **Validation Options**: Semantic, syntax, and lightweight validation
+- **Tree-sitter Parsing**: Enable advanced syntax parsing (JS/TS, Python, JSON, CSS, Go, Rust)
 - **Link Previews**: Enable/disable code file link previews
 - **Auto-detect Language**: Automatically detect programming language
 
@@ -169,11 +171,13 @@ These settings apply instantly to all open editors:
 monaco-prettier-editor/
 ├── MonacoView.ts          # Main editor view
 ├── ThemeManager.ts        # Theme loading and management
-├── ValidationManager.ts   # YAML/code validation
+├── TreeSitterManager.ts   # Tree-sitter syntax parsing
+├── ValidationManager.ts   # Code validation (tree-sitter + lightweight)
 ├── SettingsTab.ts         # Settings UI
 ├── main.ts                # Plugin entry point
 ├── esbuild.config.mjs     # Build configuration
-└── styles.css             # Monaco CSS bundle
+├── styles.css             # Monaco CSS bundle
+└── wasm/                  # Tree-sitter WASM files
 ```
 
 ### Building
@@ -186,6 +190,7 @@ npm run dev       # Development mode (watch)
 ### Technologies
 - **Monaco Editor**: 0.45.0
 - **Prettier**: 3.2.4
+- **Tree-sitter**: 0.26.3 (advanced syntax parsing)
 - **js-yaml**: 4.1.1 (YAML validation)
 - **JSZip**: 3.10.1 (VSIX theme loading)
 - **TypeScript**: 4.7.4
@@ -212,7 +217,19 @@ MIT License - see [LICENSE](LICENSE) file for details
 - **Obsidian** - The extensible knowledge base
 - **VS Code Community** - Theme ecosystem
 
-## 🐛 Known Issues & Limitations
+## � Planned Features
+
+### Style Settings Integration
+Integration with the [Style Settings](https://github.com/mgmeyers/obsidian-style-settings) plugin to allow centralized theme customization:
+
+- **CSS Variable Exposure**: All editor settings exposed as CSS variables
+- **Granular Theme Control**: Override individual theme colors (fonts, backgrounds, syntax highlighting)
+- **Global Configuration**: Manage Monaco settings alongside other Obsidian theme customizations
+- **Live Updates**: Changes apply instantly across all open editors
+
+This will enable users with Style Settings to configure Monaco Prettier Editor without opening the plugin settings, alongside their other appearance customizations.
+
+## �🐛 Known Issues & Limitations
 
 - **Monaco Features**: Some VS Code features (debugging, extensions, terminal) are not available
 - **Large Files**: Files >5MB may experience performance degradation

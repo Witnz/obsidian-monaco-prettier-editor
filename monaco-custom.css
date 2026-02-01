@@ -1,1 +1,25 @@
 /* Monaco Prettier Editor - Custom CSS */
+
+/* Inline error and warning messages */
+.monaco-inline-error,
+.monaco-inline-warning {
+	opacity: 0.8;
+	font-size: 0.9em;
+	font-style: italic;
+	padding-left: 0.5em;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.monaco-inline-error {
+	color: var(--text-error);
+}
+
+.monaco-inline-warning {
+	color: var(--text-warning, #ffa500);
+}
+
+/* Make inline messages slightly transparent and smaller */
+.monaco-editor .view-overlays .inline-decoration {
+	font-family: var(--font-interface);
+}

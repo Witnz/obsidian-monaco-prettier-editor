@@ -92,7 +92,7 @@ export class FenceEditModal extends Modal {
 						this.monacoEditor,
 						this.language,
 						code,
-						settings.enableTreeSitter
+						settings
 					);
 				}
 			});
@@ -104,7 +104,7 @@ export class FenceEditModal extends Modal {
 						this.monacoEditor,
 						this.language,
 						this.code,
-						settings.enableTreeSitter
+						settings
 					);
 				}
 			}, 100);

@@ -22,6 +22,7 @@ export class MonacoPrettierView extends TextFileView {
 	private formatOnTypeDisposable: monaco.IDisposable | null = null;
 	private static monacoConfigured = false;
 	private languageDetector: LanguageDetector;
+	private isLoadingFile = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: MonacoPrettierPlugin) {
 		super(leaf);
@@ -60,6 +61,7 @@ export class MonacoPrettierView extends TextFileView {
 
 	async onLoadFile(file: TFile): Promise<void> {
 		console.log('Monaco Prettier: onLoadFile START');
+		this.isLoadingFile = true;
 		
 		// Wait for container to be ready
 		await new Promise(resolve => setTimeout(resolve, 10));
@@ -102,7 +104,7 @@ export class MonacoPrettierView extends TextFileView {
 			fontFamily: settings.fontFamily,
 			fontLigatures: settings.fontLigatures,
 			lineNumbers: settings.lineNumbers ? "on" : "off",
-			glyphMargin: false,
+			glyphMargin: true, // Show error/warning icons in glyph margin
 			minimap: { enabled: settings.minimap },
 			wordWrap: settings.wordWrap ? "on" : "off",
 			folding: settings.folding,
@@ -111,6 +113,16 @@ export class MonacoPrettierView extends TextFileView {
 			scrollBeyondLastLine: false,
 			renderWhitespace: "selection",
 			bracketPairColorization: { enabled: true },
+			// Enable hover tooltips
+			hover: {
+				enabled: true,
+				delay: 300,
+				sticky: true
+			},
+			// Show error squiggles
+			'semanticHighlighting.enabled': true,
+			quickSuggestions: true,
+			suggestOnTriggerCharacters: true,
 		});
 		
 		console.log('Monaco Prettier: Editor created');
@@ -133,18 +145,13 @@ export class MonacoPrettierView extends TextFileView {
 
 		// Listen to content changes
 		this.editor.onDidChangeModelContent(async () => {
-			this.requestSave();
-			
-			// Run lightweight syntax validation if enabled
-			if (settings.lightweightValidation && this.editor) {
-				const language = this.getLanguageFromExtension(file.extension);
-				await ValidationManager.validateAndDisplayMarkers(
-					this.editor,
-					language,
-					this.editor.getValue(),
-					settings.enableTreeSitter
-				);
+			// Don't save during initial file load
+			if (!this.isLoadingFile) {
+				this.requestSave();
 			}
+			
+			// Run validation on content change
+			this.runValidation();
 		});
 		
 		// Add keyboard handlers like vscode-editor
@@ -156,6 +163,9 @@ export class MonacoPrettierView extends TextFileView {
 		await super.onLoadFile(file);
 		
 		console.log('Monaco Prettier: super.onLoadFile complete, forcing layout');
+		
+		// File is now loaded, allow saves from content changes
+		this.isLoadingFile = false;
 		
 		// Force multiple layout passes to ensure proper sizing
 		if (this.editor) {
@@ -192,6 +202,9 @@ export class MonacoPrettierView extends TextFileView {
 			} else {
 				this.editor.setValue(data || '');
 			}
+			
+			// Trigger initial validation after content is set
+			this.runValidation();
 		}
 	}
 	
@@ -226,18 +239,44 @@ export class MonacoPrettierView extends TextFileView {
 	clear(): void {
 		this.editor?.setValue('');
 	}
+	
+	private async runValidation(): Promise<void> {
+		if (!this.editor || !this.file) return;
+		
+		const settings = this.plugin.settings;
+		
+		// Run lightweight validation if enabled (for non-TS/JS languages)
+		if (settings.lightweightValidation) {
+			const language = this.getLanguageFromExtension(this.file.extension);
+			await ValidationManager.validateAndDisplayMarkers(
+				this.editor,
+				language,
+				this.editor.getValue(),
+				settings
+			);
+		}
+	}
 
 	private configureLanguageDefaults(): void {
+		const settings = this.plugin.settings;
+		
+		console.log('Configuring Monaco language defaults:', {
+			semanticValidation: settings.semanticValidation,
+			syntaxValidation: settings.syntaxValidation,
+			noSemanticValidation: !settings.semanticValidation,
+			noSyntaxValidation: !settings.syntaxValidation
+		});
+		
 		// Configure JavaScript language defaults
 		monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-			noSemanticValidation: !this.plugin.settings.semanticValidation,
-			noSyntaxValidation: !this.plugin.settings.syntaxValidation,
+			noSemanticValidation: !settings.semanticValidation,
+			noSyntaxValidation: !settings.syntaxValidation,
 		});
 
 		// Configure TypeScript language defaults
 		monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-			noSemanticValidation: !this.plugin.settings.semanticValidation,
-			noSyntaxValidation: !this.plugin.settings.syntaxValidation,
+			noSemanticValidation: !settings.semanticValidation,
+			noSyntaxValidation: !settings.syntaxValidation,
 		});
 
 		// Enable more helpful compiler options for better validation
@@ -263,6 +302,31 @@ export class MonacoPrettierView extends TextFileView {
 			allowJs: true,
 			typeRoots: ["node_modules/@types"],
 		});
+
+		// Configure JSON validation
+		monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+			validate: true,
+			schemas: [],
+			allowComments: false,
+			enableSchemaRequest: false
+		});
+
+		// Configure CSS validation
+		monaco.languages.css.cssDefaults.setDiagnosticsOptions({
+			validate: true
+		});
+
+		// Configure SCSS validation
+		monaco.languages.css.scssDefaults.setDiagnosticsOptions({
+			validate: true
+		});
+
+		// Configure LESS validation
+		monaco.languages.css.lessDefaults.setDiagnosticsOptions({
+			validate: true
+		});
+
+		// HTML validation is enabled by default in Monaco
 	}
 
 	private addKeyboardEventHandlers(): void {
@@ -398,6 +462,9 @@ export class MonacoPrettierView extends TextFileView {
 
 	async onUnloadFile(file: TFile): Promise<void> {
 		console.log('MonacoView.onUnloadFile: Starting cleanup for:', file.name);
+		
+		// Mark as loading to prevent any spurious saves during cleanup
+		this.isLoadingFile = true;
 		
 		// Clean up keyboard event listener
 		window.removeEventListener('keydown', this.handleKeyDown, true);

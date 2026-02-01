@@ -167,6 +167,27 @@ export class ThemeManager {
 	}
 
 	/**
+	 * Delete a custom theme
+	 */
+	async deleteCustomTheme(themeId: string): Promise<boolean> {
+		if (!this.customThemes.has(themeId)) {
+			return false;
+		}
+		
+		this.customThemes.delete(themeId);
+		await this.saveCallback();
+		return true;
+	}
+
+	/**
+	 * Clear all custom themes
+	 */
+	async clearAllCustomThemes(): Promise<void> {
+		this.customThemes.clear();
+		await this.saveCallback();
+	}
+
+	/**
 	 * Get all available theme IDs
 	 */
 	getAvailableThemes(): Array<{ id: string; name: string; type: "builtin" | "preset" | "custom" }> {

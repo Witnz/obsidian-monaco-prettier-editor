@@ -1,6 +1,8 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice, Modal, requestUrl } from "obsidian";
 import MonacoPrettierPlugin from "./main";
 import { BUILT_IN_THEMES, THEME_PRESETS } from "./ThemeManager";
+import type { TreeSitterLanguageParser } from "./settings";
+import { DEFAULT_SETTINGS } from "./settings";
 
 type SettingsTabType = 'general' | 'editor' | 'formatting' | 'theme';
 
@@ -298,6 +300,180 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 						});
 					})
 			);
+
+		// Inline Error Messages
+		containerEl.createEl("h3", { text: "Inline Error Messages" });
+
+		new Setting(containerEl)
+			.setName("Inline error font")
+			.setDesc("Font family for inline error and warning messages")
+			.addText((text) =>
+				text
+					.setPlaceholder("'Cascadia Code', Consolas, monospace")
+					.setValue(this.plugin.settings.inlineErrorFont)
+					.onChange(async (value) => {
+						this.plugin.settings.inlineErrorFont = value || DEFAULT_SETTINGS.inlineErrorFont;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Inline error font size")
+			.setDesc("Font size for inline error messages (in pixels)")
+			.addText((text) =>
+				text
+					.setPlaceholder("12")
+					.setValue(String(this.plugin.settings.inlineErrorFontSize))
+					.onChange(async (value) => {
+						const numValue = parseInt(value);
+						if (!isNaN(numValue) && numValue > 0 && numValue <= 24) {
+							this.plugin.settings.inlineErrorFontSize = numValue;
+							await this.plugin.saveSettings();
+						}
+					})
+			);
+		
+		// Advanced Settings
+		containerEl.createEl("h3", { text: "Advanced" });
+
+		new Setting(containerEl)
+			.setName("Enable Tree-sitter")
+			.setDesc("Use advanced tree-sitter parsing for better syntax validation. Requires language parser downloads (see below).")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableTreeSitter)
+					.onChange(async (value) => {
+						this.plugin.settings.enableTreeSitter = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Tree-sitter Language Parsers Section
+		containerEl.createEl("h4", { text: "Tree-sitter Language Parsers" });
+		
+		const parserDescEl = containerEl.createEl("div", { cls: "setting-item-description" });
+		parserDescEl.style.marginBottom = "1em";
+		parserDescEl.setText(
+			"Download language-specific parsers for advanced syntax validation. " +
+			"Parsers are stored locally and loaded from your vault."
+		);
+
+		const parsers = this.plugin.settings.treeSitterParsers;
+		const sortedLanguages = Object.keys(parsers).sort((a, b) => 
+			parsers[a].displayName.localeCompare(parsers[b].displayName)
+		);
+
+		for (const lang of sortedLanguages) {
+			const parser = parsers[lang];
+			const setting = new Setting(containerEl);
+			
+			// Create status badge
+			const statusBadge = setting.nameEl.createSpan({ cls: "monaco-parser-status" });
+			if (parser.installed) {
+				statusBadge.setText("✓ Installed");
+				statusBadge.style.color = "var(--text-success)";
+			} else {
+				statusBadge.setText("○ Not installed");
+				statusBadge.style.color = "var(--text-muted)";
+			}
+			statusBadge.style.fontSize = "0.85em";
+			statusBadge.style.marginLeft = "0.5em";
+
+			setting
+				.setName(parser.displayName)
+				.setDesc(`Version ${parser.version}${parser.size ? ` • ${(parser.size / 1024).toFixed(1)} KB` : ""}`);
+
+			// Download/Remove button
+			if (parser.installed) {
+				setting.addButton((button) =>
+					button
+						.setButtonText("Remove")
+						.setCta()
+						.onClick(async () => {
+							button.setDisabled(true);
+							button.setButtonText("Removing...");
+							await this.removeParser(lang);
+							button.setButtonText("Download");
+							button.setCta();
+							button.setDisabled(false);
+							statusBadge.setText("○ Not installed");
+							statusBadge.style.color = "var(--text-muted)";
+							this.display(); // Refresh display
+						})
+				);
+			} else {
+				setting.addButton((button) =>
+					button
+						.setButtonText("Download")
+						.setCta()
+						.onClick(async () => {
+							button.setDisabled(true);
+							button.setButtonText("Downloading...");
+							const success = await this.downloadParser(lang);
+							if (success) {
+								button.setButtonText("Remove");
+								statusBadge.setText("✓ Installed");
+								statusBadge.style.color = "var(--text-success)";
+							} else {
+								button.setButtonText("Retry");
+								button.setDisabled(false);
+							}
+							this.display(); // Refresh display
+						})
+				);
+			}
+
+			// Info button with details
+			setting.addExtraButton((button) =>
+				button
+					.setIcon("info")
+					.setTooltip("View parser details")
+					.onClick(() => {
+						const modal = new ParserInfoModal(this.app, parser);
+						modal.open();
+					})
+			);
+		}
+
+		// Bulk actions
+		const bulkActionsDiv = containerEl.createDiv({ cls: "monaco-bulk-actions" });
+		bulkActionsDiv.style.display = "flex";
+		bulkActionsDiv.style.gap = "0.5em";
+		bulkActionsDiv.style.marginTop = "1em";
+
+		const downloadAllBtn = bulkActionsDiv.createEl("button", { text: "Download All" });
+		downloadAllBtn.style.flex = "1";
+		downloadAllBtn.addEventListener("click", async () => {
+			downloadAllBtn.disabled = true;
+			downloadAllBtn.textContent = "Downloading...";
+			await this.downloadAllParsers();
+			downloadAllBtn.disabled = false;
+			downloadAllBtn.textContent = "Download All";
+			this.display();
+		});
+
+		const removeAllBtn = bulkActionsDiv.createEl("button", { text: "Remove All" });
+		removeAllBtn.style.flex = "1";
+		removeAllBtn.addEventListener("click", async () => {
+			removeAllBtn.disabled = true;
+			removeAllBtn.textContent = "Removing...";
+			await this.removeAllParsers();
+			removeAllBtn.disabled = false;
+			removeAllBtn.textContent = "Remove All";
+			this.display();
+		});
+
+		new Setting(containerEl)
+			.setName("Console logging to file")
+			.setDesc("Log all console output to 'monaco-prettier-console.log' in vault root (requires restart)")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableConsoleLogging)
+					.onChange(async (value) => {
+						this.plugin.settings.enableConsoleLogging = value;
+						await this.plugin.saveSettings();
+					})
+			);
 	}
 
 	private displayFormattingSettings(containerEl: HTMLElement): void {
@@ -510,15 +686,86 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Theme Management
+		containerEl.createEl("h3", { text: "Manage Custom Themes" });
+
+		const availableThemes = this.plugin.themeManager.getAvailableThemes();
+		const customThemes = availableThemes.filter(t => t.type === "custom");
+
+		if (customThemes.length > 0) {
+			new Setting(containerEl)
+				.setName("Delete custom theme")
+				.setDesc("Remove a custom theme from your collection")
+				.addDropdown((dropdown) => {
+					customThemes.forEach((theme) => {
+						dropdown.addOption(theme.id, theme.name);
+					});
+					return dropdown;
+				})
+				.addButton((button) => {
+					button
+						.setButtonText("Delete")
+						.setWarning()
+						.onClick(async () => {
+							const dropdown = button.buttonEl.parentElement?.querySelector("select") as HTMLSelectElement;
+							const themeId = dropdown?.value;
+							if (!themeId) return;
+
+							const themeName = customThemes.find(t => t.id === themeId)?.name || themeId;
+							
+							if (await this.plugin.themeManager.deleteCustomTheme(themeId)) {
+								// If deleted theme was active, switch to default
+								if (this.plugin.settings.selectedTheme === themeId) {
+									this.plugin.settings.selectedTheme = "vs-dark";
+									await this.plugin.saveSettings();
+									this.plugin.themeManager.applyTheme("vs-dark");
+								}
+								new Notice(`Deleted theme: ${themeName}`);
+								this.display();
+							}
+						});
+				});
+
+			new Setting(containerEl)
+				.setName("Clear all custom themes")
+				.setDesc(`Remove all ${customThemes.length} custom theme(s) from your collection`)
+				.addButton((button) => {
+					button
+						.setButtonText("Clear All")
+						.setWarning()
+						.onClick(async () => {
+							await this.plugin.themeManager.clearAllCustomThemes();
+							
+							// Switch to default if current theme was custom
+							const wasCustom = customThemes.some(t => t.id === this.plugin.settings.selectedTheme);
+							if (wasCustom) {
+								this.plugin.settings.selectedTheme = "vs-dark";
+								await this.plugin.saveSettings();
+								this.plugin.themeManager.applyTheme("vs-dark");
+							}
+							
+							new Notice(`Cleared ${customThemes.length} custom theme(s)`);
+							this.display();
+						});
+				});
+		} else {
+			containerEl.createEl("p", {
+				text: "No custom themes loaded yet. Import themes below to get started.",
+				cls: "setting-item-description"
+			});
+		}
+
 		// Theme Loading
 		containerEl.createEl("h3", { text: "Load Custom Themes" });
 
+		containerEl.createEl("h4", { text: "From Local Files" });
+
 		new Setting(containerEl)
-			.setName("Import custom theme")
-			.setDesc("Load a VS Code theme JSON file from your vault")
+			.setName("Theme file path")
+			.setDesc("Load a theme from your vault (JSON theme file or VSIX extension)")
 			.addText((text) => {
 				text
-					.setPlaceholder("path/to/theme.json")
+					.setPlaceholder("path/to/theme.json or path/to/extension.vsix")
 					.setValue("");
 				text.inputEl.style.width = "300px";
 				return text;
@@ -528,27 +775,36 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 					.setButtonText("Load")
 					.onClick(async () => {
 						const inputEl = button.buttonEl.parentElement?.querySelector("input");
-						const path = inputEl?.value;
+						const path = inputEl?.value?.trim();
 						if (!path) return;
 
-						const themeId = await this.plugin.themeManager.loadThemeFromFile(path);
-						if (themeId) {
-							this.plugin.settings.selectedTheme = themeId;
+						let themeIds: string[] = [];
+						
+						// Detect file type by extension
+						if (path.endsWith('.vsix')) {
+							themeIds = await this.plugin.themeManager.loadThemesFromVSIX(path);
+						} else {
+							// Assume JSON for .json or any other extension
+							const themeId = await this.plugin.themeManager.loadThemeFromFile(path);
+							if (themeId) themeIds = [themeId];
+						}
+
+						if (themeIds.length > 0) {
+							this.plugin.settings.selectedTheme = themeIds[0];
 							await this.plugin.saveSettings();
-							// Refresh settings to show new theme in dropdown
 							this.display();
 						}
 					});
 			});
 
-		containerEl.createEl("h4", { text: "Import from VS Code Marketplace" });
+		containerEl.createEl("h4", { text: "From VS Code Marketplace" });
 
 		new Setting(containerEl)
-			.setName("Extension ID")
-			.setDesc("Load themes from marketplace by extension ID (e.g., Avetis.tokyo-night)")
+			.setName("Extension ID or URL")
+			.setDesc("Load themes from marketplace (e.g., 'Avetis.tokyo-night' or full marketplace URL)")
 			.addText((text) => {
 				text
-					.setPlaceholder("publisher.extensionName")
+					.setPlaceholder("publisher.extensionName or https://marketplace.visualstudio.com/...")
 					.setValue("");
 				text.inputEl.style.width = "300px";
 				return text;
@@ -558,10 +814,18 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 					.setButtonText("Load")
 					.onClick(async () => {
 						const inputEl = button.buttonEl.parentElement?.querySelector("input");
-						const extensionId = inputEl?.value;
-						if (!extensionId) return;
+						const input = inputEl?.value?.trim();
+						if (!input) return;
 
-						const themeIds = await this.plugin.themeManager.loadThemesFromMarketplace(extensionId);
+						let themeIds: string[] = [];
+						
+						// Detect if input is a URL or extension ID
+						if (input.startsWith("http://") || input.startsWith("https://")) {
+							themeIds = await this.plugin.themeManager.loadThemesFromMarketplaceURL(input);
+						} else {
+							themeIds = await this.plugin.themeManager.loadThemesFromMarketplace(input);
+						}
+
 						if (themeIds.length > 0) {
 							// Select first theme from extension
 							this.plugin.settings.selectedTheme = themeIds[0];
@@ -570,59 +834,200 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 						}
 					});
 			});
+	}
 
-		new Setting(containerEl)
-			.setName("Marketplace URL")
-			.setDesc("Load themes from marketplace URL")
-			.addText((text) => {
-				text
-					.setPlaceholder("https://marketplace.visualstudio.com/items?itemName=...")
-					.setValue("");
-				text.inputEl.style.width = "300px";
-				return text;
-			})
-			.addButton((button) => {
-				button
-					.setButtonText("Load")
-					.onClick(async () => {
-						const inputEl = button.buttonEl.parentElement?.querySelector("input");
-						const url = inputEl?.value;
-						if (!url) return;
+	// Tree-sitter parser management methods
+	private async downloadParser(language: string): Promise<boolean> {
+		const parser = this.plugin.settings.treeSitterParsers[language];
+		if (!parser) {
+			new Notice(`Parser not found: ${language}`);
+			return false;
+		}
 
-						const themeIds = await this.plugin.themeManager.loadThemesFromMarketplaceURL(url);
-						if (themeIds.length > 0) {
-							this.plugin.settings.selectedTheme = themeIds[0];
-							await this.plugin.saveSettings();
-							this.display();
-						}
-					});
+		try {
+			new Notice(`Downloading ${parser.displayName} parser...`);
+			
+			// Download WASM file from CDN
+			const response = await requestUrl({
+				url: parser.cdnUrl,
+				method: 'GET'
 			});
 
-		new Setting(containerEl)
-			.setName("Local VSIX file")
-			.setDesc("Load themes from a VSIX file in your vault")
-			.addText((text) => {
-				text
-					.setPlaceholder("path/to/extension.vsix")
-					.setValue("");
-				text.inputEl.style.width = "300px";
-				return text;
-			})
-			.addButton((button) => {
-				button
-					.setButtonText("Load")
-					.onClick(async () => {
-						const inputEl = button.buttonEl.parentElement?.querySelector("input");
-						const path = inputEl?.value;
-						if (!path) return;
+			if (response.status !== 200) {
+				throw new Error(`HTTP ${response.status}: ${response.text}`);
+			}
 
-						const themeIds = await this.plugin.themeManager.loadThemesFromVSIX(path);
-						if (themeIds.length > 0) {
-							this.plugin.settings.selectedTheme = themeIds[0];
-							await this.plugin.saveSettings();
-							this.display();
-						}
-					});
-			});
+			// Ensure wasm directory exists
+			const wasmDir = '.obsidian/plugins/monaco-prettier-editor/wasm';
+			const adapter = this.app.vault.adapter;
+			
+			try {
+				await adapter.mkdir(wasmDir);
+			} catch (e) {
+				// Directory might already exist
+			}
+
+			// Save WASM file locally
+			const fileName = `tree-sitter-${language}.wasm`;
+			const localPath = `${wasmDir}/${fileName}`;
+			
+			await adapter.writeBinary(localPath, response.arrayBuffer);
+
+			// Update settings
+			parser.installed = true;
+			parser.installedVersion = parser.version;
+			parser.localPath = localPath;
+			parser.size = response.arrayBuffer.byteLength;
+			parser.lastUpdated = Date.now();
+
+			await this.plugin.saveSettings();
+			
+			new Notice(`✓ ${parser.displayName} parser downloaded successfully`);
+			console.log(`✅ Downloaded parser for ${language} (${(parser.size / 1024).toFixed(1)} KB)`);
+			
+			return true;
+		} catch (error) {
+			console.error(`❌ Failed to download parser for ${language}:`, error);
+			new Notice(`Failed to download ${parser.displayName} parser: ${error.message}`);
+			return false;
+		}
+	}
+
+	private async removeParser(language: string): Promise<boolean> {
+		const parser = this.plugin.settings.treeSitterParsers[language];
+		if (!parser || !parser.installed) {
+			return false;
+		}
+
+		try {
+			const adapter = this.app.vault.adapter;
+			
+			// Delete WASM file if it exists
+			if (parser.localPath) {
+				try {
+					await adapter.remove(parser.localPath);
+				} catch (e) {
+					console.warn(`Could not delete file ${parser.localPath}:`, e);
+				}
+			}
+
+			// Update settings
+			parser.installed = false;
+			delete parser.installedVersion;
+			delete parser.localPath;
+			delete parser.size;
+			delete parser.lastUpdated;
+
+			await this.plugin.saveSettings();
+			
+			new Notice(`✓ ${parser.displayName} parser removed`);
+			console.log(`✅ Removed parser for ${language}`);
+			
+			return true;
+		} catch (error) {
+			console.error(`❌ Failed to remove parser for ${language}:`, error);
+			new Notice(`Failed to remove ${parser.displayName} parser: ${error.message}`);
+			return false;
+		}
+	}
+
+	private async downloadAllParsers(): Promise<void> {
+		const parsers = Object.keys(this.plugin.settings.treeSitterParsers);
+		new Notice(`Downloading ${parsers.length} parsers...`);
+		
+		let successCount = 0;
+		for (const lang of parsers) {
+			if (!this.plugin.settings.treeSitterParsers[lang].installed) {
+				const success = await this.downloadParser(lang);
+				if (success) successCount++;
+			}
+		}
+		
+		new Notice(`✓ Downloaded ${successCount} of ${parsers.length} parsers`);
+	}
+
+	private async removeAllParsers(): Promise<void> {
+		const parsers = Object.keys(this.plugin.settings.treeSitterParsers);
+		let removeCount = 0;
+		
+		for (const lang of parsers) {
+			if (this.plugin.settings.treeSitterParsers[lang].installed) {
+				const success = await this.removeParser(lang);
+				if (success) removeCount++;
+			}
+		}
+		
+		new Notice(`✓ Removed ${removeCount} parsers`);
+	}
+}
+
+// Modal for displaying parser information
+class ParserInfoModal extends Modal {
+	parser: TreeSitterLanguageParser;
+
+	constructor(app: App, parser: TreeSitterLanguageParser) {
+		super(app);
+		this.parser = parser;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		contentEl.createEl("h2", { text: `${this.parser.displayName} Parser` });
+
+		const infoDiv = contentEl.createDiv({ cls: "monaco-parser-info" });
+		
+		this.addInfoRow(infoDiv, "Language", this.parser.language);
+		this.addInfoRow(infoDiv, "Version", this.parser.version);
+		this.addInfoRow(infoDiv, "Status", this.parser.installed ? "✓ Installed" : "○ Not installed");
+		
+		if (this.parser.installed) {
+			this.addInfoRow(infoDiv, "Installed Version", this.parser.installedVersion || "Unknown");
+			if (this.parser.size) {
+				this.addInfoRow(infoDiv, "Size", `${(this.parser.size / 1024).toFixed(1)} KB`);
+			}
+			if (this.parser.lastUpdated) {
+				const date = new Date(this.parser.lastUpdated);
+				this.addInfoRow(infoDiv, "Last Updated", date.toLocaleString());
+			}
+			if (this.parser.localPath) {
+				this.addInfoRow(infoDiv, "Local Path", this.parser.localPath);
+			}
+		}
+		
+		this.addInfoRow(infoDiv, "CDN URL", this.parser.cdnUrl);
+
+		const noteDiv = contentEl.createDiv({ cls: "monaco-parser-note" });
+		noteDiv.style.marginTop = "1em";
+		noteDiv.style.padding = "0.5em";
+		noteDiv.style.backgroundColor = "var(--background-secondary)";
+		noteDiv.style.borderRadius = "4px";
+		noteDiv.setText(
+			"Tree-sitter parsers provide advanced syntax analysis for their respective languages. " +
+			"They are downloaded from jsDelivr CDN and stored locally in your vault."
+		);
+
+		const closeBtn = contentEl.createEl("button", { text: "Close" });
+		closeBtn.style.marginTop = "1em";
+		closeBtn.addEventListener("click", () => this.close());
+	}
+
+	private addInfoRow(container: HTMLElement, label: string, value: string) {
+		const row = container.createDiv({ cls: "monaco-parser-info-row" });
+		row.style.display = "flex";
+		row.style.marginBottom = "0.5em";
+		
+		const labelEl = row.createSpan({ text: label + ":" });
+		labelEl.style.fontWeight = "bold";
+		labelEl.style.minWidth = "140px";
+		
+		const valueEl = row.createSpan({ text: value });
+		valueEl.style.wordBreak = "break-all";
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
 	}
 }

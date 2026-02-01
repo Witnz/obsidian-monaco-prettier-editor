@@ -173,6 +173,29 @@ npm version patch/minor/major
 3. **Format-on-type** with intelligent debouncing
 4. **Minimal integration** for consistent design
 5. **No external dependencies** - everything bundled locally
+6. **Tree-sitter parsing** - Professional-grade syntax validation
+
+## 🔮 Roadmap
+
+### ✅ Implemented: Tree-sitter Integration
+- **Advanced Syntax Parsing**: Tree-sitter support for JavaScript, TypeScript, Python, JSON, CSS, Go, Rust
+- **Better Error Detection**: Precise syntax error reporting with line/column information
+- **Fallback System**: Automatic fallback to lightweight validators for unsupported languages
+- **Optional Feature**: Can be enabled/disabled in settings
+
+### Planned: Style Settings Integration
+- **CSS Variable System**: Expose all settings as CSS variables for external configuration
+- **Granular Theme Overrides**: Allow font colors, backgrounds, and syntax highlighting to be customized per-property
+- **Obsidian Style Settings Plugin Integration**: Configure Monaco alongside other theme settings in one place
+- **Live Theme Updates**: CSS-based theming enables instant updates without code changes
+
+This will allow users to treat Monaco as part of their Obsidian theme ecosystem, customizable through the Style Settings plugin interface.
+
+### Potential Future Enhancements
+- **Language Server Protocol**: Full IDE-grade intellisense and diagnostics
+- **Collaborative Editing**: Real-time collaboration support
+- **Custom Language Support**: User-defined syntax highlighting
+- **More Tree-sitter Languages**: Expand support to additional languages
 
 ## 📖 Documentation
 
@@ -190,4 +213,4 @@ npm version patch/minor/major
 
 ---
 
-**Status**: ✅ Code Complete | ⏳ Building | 📦 Ready for Testing
+**Status**: ✅ Core Complete | 🎨 Theme System Active | 📋 Planning Style Settings Integration
