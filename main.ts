@@ -15,9 +15,16 @@ export default class MonacoPrettierPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		// Initialize theme manager
-		this.themeManager = new ThemeManager(this.app);
+		// Initialize theme manager with save callback
+		this.themeManager = new ThemeManager(this.app, async () => {
+			// Update settings with current custom themes
+			this.settings.customThemes = this.themeManager.getCustomThemesForSettings();
+			await this.saveSettings();
+		});
 		this.themeManager.initializePresetThemes();
+		
+		// Load custom themes from settings
+		this.themeManager.loadCustomThemesFromSettings(this.settings.customThemes);
 
 		// Initialize link preview manager
 		this.linkPreviewManager = new LinkPreviewManager(this.app, this);

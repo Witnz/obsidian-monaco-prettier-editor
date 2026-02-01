@@ -22,7 +22,6 @@ export class MonacoPrettierView extends TextFileView {
 	private formatOnTypeDisposable: monaco.IDisposable | null = null;
 	private static monacoConfigured = false;
 	private languageDetector: LanguageDetector;
-	private addedBlankLines = false; // Track if we added auto-blank-lines for empty files
 
 	constructor(leaf: WorkspaceLeaf, plugin: MonacoPrettierPlugin) {
 		super(leaf);
@@ -181,46 +180,47 @@ export class MonacoPrettierView extends TextFileView {
 	
 	// TextFileView calls this to set the file content
 	setViewData(data: string, clear: boolean): void {
-		console.log('Monaco Prettier: setViewData called, data length:', data?.length || 0);
+		console.log('MonacoView.setViewData called:', {
+			dataLength: data.length,
+			clear,
+			fileName: this.file?.name,
+			firstChars: data.substring(0, 50)
+		});
 		if (this.editor) {
-			// If file is empty or just whitespace, add blank lines for easier clicking
-			let content = data;
-			this.addedBlankLines = false; // Reset flag
-			
-			if (!data || data.trim().length === 0) {
-				content = '\n'.repeat(30); // Add 30 blank lines for new/empty files
-				this.addedBlankLines = true; // Mark that we added blank lines
-				console.log('Monaco Prettier: Added auto-blank-lines for empty file');
-			}
-			
 			if (clear) {
-				this.editor.getModel()?.setValue(content);
+				this.editor.getModel()?.setValue(data || '');
 			} else {
-				this.editor.setValue(content);
+				this.editor.setValue(data || '');
 			}
 		}
 	}
 	
 	// TextFileView calls this to get the current content
 	getViewData(): string {
-		const content = this.editor?.getValue() ?? "";
+		console.log('MonacoView.getViewData called:', {
+			hasEditor: !!this.editor,
+			hasModel: !!this.editor?.getModel(),
+			editorDisposed: this.editor ? (this.editor as any)._disposed : 'no editor',
+			fileName: this.file?.name
+		});
 		
-		// Only return empty if:
-		// 1. We added the blank lines ourselves (addedBlankLines flag is true)
-		// 2. AND the content is still only whitespace (user didn't type anything)
-		if (this.addedBlankLines && content.trim().length === 0) {
-			console.log('Monaco Prettier: Returning empty (auto-blank-lines unchanged)');
-			return "";
+		// Simply return current editor value - no caching needed
+		if (this.editor?.getModel()) {
+			const content = this.editor.getValue();
+			console.log('MonacoView.getViewData: Returning editor content:', {
+				length: content.length,
+				firstChars: content.substring(0, 50)
+			});
+			return content;
 		}
 		
-		// If user typed something, clear the flag and save the content
-		if (this.addedBlankLines && content.trim().length > 0) {
-			this.addedBlankLines = false;
-			console.log('Monaco Prettier: User added content, disabling blank-lines flag');
-		}
-		
-		// For files with actual content, trim excessive trailing blank lines
-		return content.replace(/\n+$/, '\n');
+		// This should never happen if lifecycle is correct
+		console.error('MonacoView.getViewData: Editor or model missing!', {
+			editorExists: !!this.editor,
+			modelExists: !!this.editor?.getModel(),
+			stackTrace: new Error().stack
+		});
+		return '';
 	}
 	
 	clear(): void {
@@ -397,18 +397,28 @@ export class MonacoPrettierView extends TextFileView {
 	}
 
 	async onUnloadFile(file: TFile): Promise<void> {
+		console.log('MonacoView.onUnloadFile: Starting cleanup for:', file.name);
+		
 		// Clean up keyboard event listener
 		window.removeEventListener('keydown', this.handleKeyDown, true);
 		
-		await super.onUnloadFile(file);
-		
-		if (this.editor) {
-			this.editor.dispose();
-			this.editor = null;
-		}
+		// Clean up format on type
 		if (this.formatOnTypeDisposable) {
 			this.formatOnTypeDisposable.dispose();
 			this.formatOnTypeDisposable = null;
+		}
+		
+		// CRITICAL: Call super.onUnloadFile() BEFORE disposing editor
+		// super.onUnloadFile() will call getViewData() to save the file
+		// The editor must still exist at that point
+		await super.onUnloadFile(file);
+		
+		console.log('MonacoView.onUnloadFile: super.onUnloadFile() complete, now disposing editor');
+		
+		// NOW it's safe to dispose the editor after the save
+		if (this.editor) {
+			this.editor.dispose();
+			this.editor = null;
 		}
 	}
 
@@ -420,10 +430,9 @@ export class MonacoPrettierView extends TextFileView {
 	}
 
 	async onClose(): Promise<void> {
-		if (this.editor) {
-			this.editor.dispose();
-			this.editor = null;
-		}
+		// Don't dispose here - onUnloadFile handles disposal
+		// onClose is called BEFORE onUnloadFile, so disposing here
+		// causes getViewData() to return empty when saving
 		return super.onClose();
 	}
 }

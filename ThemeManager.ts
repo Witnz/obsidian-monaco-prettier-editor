@@ -138,10 +138,32 @@ export class ThemeManager {
 	private app: App;
 	private customThemes: Map<string, VSCodeTheme> = new Map();
 	private vsixLoader: VSIXThemeLoader;
+	private saveCallback: () => Promise<void>;
 
-	constructor(app: App) {
+	constructor(app: App, saveCallback: () => Promise<void>) {
 		this.app = app;
 		this.vsixLoader = new VSIXThemeLoader(app);
+		this.saveCallback = saveCallback;
+	}
+
+	/**
+	 * Load custom themes from settings
+	 */
+	loadCustomThemesFromSettings(customThemes: Record<string, any>): void {
+		Object.entries(customThemes).forEach(([id, theme]) => {
+			this.customThemes.set(id, theme as VSCodeTheme);
+		});
+	}
+
+	/**
+	 * Get custom themes for saving to settings
+	 */
+	getCustomThemesForSettings(): Record<string, any> {
+		const themes: Record<string, any> = {};
+		this.customThemes.forEach((theme, id) => {
+			themes[id] = theme;
+		});
+		return themes;
 	}
 
 	/**
@@ -195,6 +217,9 @@ export class ThemeManager {
 			// Define theme in Monaco
 			this.defineTheme(themeId, themeData);
 
+			// Save to settings
+			await this.saveCallback();
+
 			new Notice(`Loaded theme: ${themeData.name || themeId}`);
 			return themeId;
 		} catch (error) {
@@ -228,6 +253,9 @@ export class ThemeManager {
 				}
 			});
 
+			// Save to settings
+			await this.saveCallback();
+
 			return loadedThemeIds;
 		} catch (error) {
 			console.error("Error loading themes from marketplace:", error);
@@ -258,6 +286,9 @@ export class ThemeManager {
 				}
 			});
 
+			// Save to settings
+			await this.saveCallback();
+
 			return loadedThemeIds;
 		} catch (error) {
 			console.error("Error loading themes from marketplace URL:", error);
@@ -287,6 +318,9 @@ export class ThemeManager {
 					console.error(`Failed to load theme ${themeId}:`, error);
 				}
 			});
+
+			// Save to settings
+			await this.saveCallback();
 
 			return loadedThemeIds;
 		} catch (error) {

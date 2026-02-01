@@ -32,6 +32,7 @@ export interface MonacoPrettierSettings {
 	// Theme
 	selectedTheme: string;
 	transparentBackground: boolean;
+	customThemes: Record<string, any>; // Store custom themes as JSON
 }
 
 export const DEFAULT_SETTINGS: MonacoPrettierSettings = {
@@ -56,8 +57,6 @@ export const DEFAULT_SETTINGS: MonacoPrettierSettings = {
 		"yaml", "yml", "toml", "ini", "conf", "cfg", "sql",
 		// Functional
 		"ex", "exs", "erl", "hrl", "clj", "cljs", "hs", "ml", "fs",
-		// Markup
-		"md", "markdown",
 		// Visual Basic
 		"vb"
 	],
@@ -89,4 +88,5 @@ export const DEFAULT_SETTINGS: MonacoPrettierSettings = {
 	
 	selectedTheme: "vs-dark",
 	transparentBackground: false,
+	customThemes: {},
 };

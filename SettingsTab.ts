@@ -2,8 +2,11 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import MonacoPrettierPlugin from "./main";
 import { BUILT_IN_THEMES, THEME_PRESETS } from "./ThemeManager";
 
+type SettingsTabType = 'general' | 'editor' | 'formatting' | 'theme';
+
 export class MonacoPrettierSettingTab extends PluginSettingTab {
 	plugin: MonacoPrettierPlugin;
+	private activeTab: SettingsTabType = 'general';
 
 	constructor(app: App, plugin: MonacoPrettierPlugin) {
 		super(app, plugin);
@@ -16,6 +19,48 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h2", { text: "Monaco Prettier Editor Settings" });
 
+		// Create tab navigation
+		const tabContainer = containerEl.createDiv({ cls: "monaco-settings-tabs" });
+		
+		const tabs: { id: SettingsTabType; label: string }[] = [
+			{ id: 'general', label: 'General' },
+			{ id: 'editor', label: 'Editor' },
+			{ id: 'formatting', label: 'Formatting' },
+			{ id: 'theme', label: 'Theme' }
+		];
+
+		tabs.forEach(tab => {
+			const button = tabContainer.createEl("button", {
+				text: tab.label,
+				cls: this.activeTab === tab.id ? "monaco-tab-active" : ""
+			});
+			button.addEventListener("click", () => {
+				this.activeTab = tab.id;
+				this.display();
+			});
+		});
+
+		// Create content container
+		const contentEl = containerEl.createDiv({ cls: "monaco-settings-content" });
+
+		// Render active tab
+		switch (this.activeTab) {
+			case 'general':
+				this.displayGeneralSettings(contentEl);
+				break;
+			case 'editor':
+				this.displayEditorSettings(contentEl);
+				break;
+			case 'formatting':
+				this.displayFormattingSettings(contentEl);
+				break;
+			case 'theme':
+				this.displayThemeSettings(contentEl);
+				break;
+		}
+	}
+
+	private displayGeneralSettings(containerEl: HTMLElement): void {
 		// File Extensions
 		containerEl.createEl("h3", { text: "File Extensions" });
 		new Setting(containerEl)
@@ -34,95 +79,8 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// Editor Settings
-		containerEl.createEl("h3", { text: "Editor Settings" });
-		
-		new Setting(containerEl)
-			.setName("Font size")
-			.setDesc("Editor font size in pixels")
-			.addSlider((slider) =>
-				slider
-					.setLimits(10, 24, 1)
-					.setValue(this.plugin.settings.fontSize)
-					.setDynamicTooltip()
-					.onChange(async (value) => {
-						this.plugin.settings.fontSize = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Font family")
-			.setDesc("Editor font family (supports multiple fallback fonts)")
-			.addText((text) =>
-				text
-					.setPlaceholder("'Fira Code', Consolas, monospace")
-					.setValue(this.plugin.settings.fontFamily)
-					.onChange(async (value) => {
-						this.plugin.settings.fontFamily = value || "'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace";
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Font ligatures")
-			.setDesc("Enable font ligatures (requires a font that supports them, like Fira Code)")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.fontLigatures)
-					.onChange(async (value) => {
-						this.plugin.settings.fontLigatures = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Show line numbers")
-			.setDesc("Display line numbers in the editor")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.lineNumbers)
-					.onChange(async (value) => {
-						this.plugin.settings.lineNumbers = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Show minimap")
-			.setDesc("Display code minimap on the right side")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.minimap)
-					.onChange(async (value) => {
-						this.plugin.settings.minimap = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Word wrap")
-			.setDesc("Wrap long lines")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.wordWrap)
-					.onChange(async (value) => {
-						this.plugin.settings.wordWrap = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Code folding")
-			.setDesc("Enable code block folding")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.folding)
-					.onChange(async (value) => {
-						this.plugin.settings.folding = value;
-						await this.plugin.saveSettings();
-					})
-			);
+		// Feature Toggles
+		containerEl.createEl("h3", { text: "Features" });
 
 		new Setting(containerEl)
 			.setName("Semantic validation")
@@ -160,19 +118,6 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 					})
 			);
 
-		// Tree-sitter toggle hidden for now (planned feature)
-		// new Setting(containerEl)
-		// 	.setName("Advanced tree-sitter validation")
-		// 	.setDesc("Enable professional-grade parsing for Python, JavaScript, TypeScript, JSON, CSS, Go, Rust. Uses tree-sitter parsers (~10-15MB bundle increase). Disable for smaller bundle size.")
-		// 	.addToggle((toggle) =>
-		// 		toggle
-		// 			.setValue(this.plugin.settings.enableTreeSitter)
-		// 			.onChange(async (value) => {
-		// 				this.plugin.settings.enableTreeSitter = value;
-		// 				await this.plugin.saveSettings();
-		// 			})
-		// 	);
-
 		new Setting(containerEl)
 			.setName("Internal link previews")
 			.setDesc("Show Monaco editor preview when hovering over internal links to code files")
@@ -202,7 +147,160 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+	}
 
+	private displayEditorSettings(containerEl: HTMLElement): void {
+		// Font Settings
+		containerEl.createEl("h3", { text: "Font" });
+		
+		new Setting(containerEl)
+			.setName("Font size")
+			.setDesc("Editor font size in pixels")
+			.addSlider((slider) =>
+				slider
+					.setLimits(10, 24, 1)
+					.setValue(this.plugin.settings.fontSize)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.fontSize = value;
+						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ fontSize: value });
+							}
+						});
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Font family")
+			.setDesc("Editor font family (supports multiple fallback fonts)")
+			.addText((text) =>
+				text
+					.setPlaceholder("'Fira Code', Consolas, monospace")
+					.setValue(this.plugin.settings.fontFamily)
+					.onChange(async (value) => {
+						this.plugin.settings.fontFamily = value || "'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace";
+						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ fontFamily: this.plugin.settings.fontFamily });
+							}
+						});
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Font ligatures")
+			.setDesc("Enable font ligatures (requires a font that supports them, like Fira Code)")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.fontLigatures)
+					.onChange(async (value) => {
+						this.plugin.settings.fontLigatures = value;
+						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ fontLigatures: value });
+							}
+						});
+					})
+			);
+
+		// Display Settings
+		containerEl.createEl("h3", { text: "Display" });
+
+		new Setting(containerEl)
+			.setName("Show line numbers")
+			.setDesc("Display line numbers in the editor")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.lineNumbers)
+					.onChange(async (value) => {
+						this.plugin.settings.lineNumbers = value;
+						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ lineNumbers: value ? 'on' : 'off' });
+							}
+						});
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show minimap")
+			.setDesc("Display code minimap on the right side")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.minimap)
+					.onChange(async (value) => {
+						this.plugin.settings.minimap = value;
+						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ minimap: { enabled: value } });
+							}
+						});
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Word wrap")
+			.setDesc("Wrap long lines")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.wordWrap)
+					.onChange(async (value) => {
+						this.plugin.settings.wordWrap = value;
+						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ wordWrap: value ? 'on' : 'off' });
+							}
+						});
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Code folding")
+			.setDesc("Enable code block folding")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.folding)
+					.onChange(async (value) => {
+						this.plugin.settings.folding = value;
+						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ folding: value });
+							}
+						});
+					})
+			);
+	}
+
+	private displayFormattingSettings(containerEl: HTMLElement): void {
 		// Prettier Settings
 		containerEl.createEl("h3", { text: "Prettier Formatting" });
 
@@ -241,6 +339,14 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.tabWidth = value;
 						await this.plugin.saveSettings();
+						
+						// Update all open Monaco editors immediately
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							const view = leaf.view as any;
+							if (view.editor?.updateOptions) {
+								view.editor.updateOptions({ tabSize: value });
+							}
+						});
 					})
 			);
 
@@ -334,36 +440,78 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+	}
 
-		// Theme Settings
-		containerEl.createEl("h3", { text: "Theme" });
+	private displayThemeSettings(containerEl: HTMLElement): void {
+		// Theme Selection
+		containerEl.createEl("h3", { text: "Theme Selection" });
 
 		new Setting(containerEl)
 			.setName("Editor theme")
 			.setDesc("Choose a color theme for the Monaco editor")
 			.addDropdown((dropdown) => {
+				// Get all available themes from ThemeManager
+				const availableThemes = this.plugin.themeManager.getAvailableThemes();
+				
+				// Group themes by type
+				const builtInThemes = availableThemes.filter(t => t.type === "builtin");
+				const presetThemes = availableThemes.filter(t => t.type === "preset");
+				const customThemes = availableThemes.filter(t => t.type === "custom");
+				
 				// Add built-in themes
-				BUILT_IN_THEMES.forEach((theme) => {
+				builtInThemes.forEach((theme) => {
 					dropdown.addOption(theme.id, theme.name);
 				});
 
-				// Add separator
-				dropdown.addOption("separator", "――――――――");
+				// Add separator if there are presets or custom themes
+				if (presetThemes.length > 0 || customThemes.length > 0) {
+					dropdown.addOption("separator1", "――――――――");
+				}
 
 				// Add preset themes
-				Object.entries(THEME_PRESETS).forEach(([id, theme]) => {
-					dropdown.addOption(id, theme.name || id);
+				presetThemes.forEach((theme) => {
+					dropdown.addOption(theme.id, theme.name);
 				});
+
+				// Add custom themes section
+				if (customThemes.length > 0) {
+					dropdown.addOption("separator2", "―― Custom ――");
+					customThemes.forEach((theme) => {
+						dropdown.addOption(theme.id, theme.name);
+					});
+				}
 
 				// Set current value
 				dropdown.setValue(this.plugin.settings.selectedTheme);
 
 				dropdown.onChange(async (value) => {
-					if (value === "separator") return; // Ignore separator
+					// Ignore separators
+					if (value.startsWith("separator")) return;
 					this.plugin.settings.selectedTheme = value;
 					await this.plugin.saveSettings();
+					
+					// Apply theme globally to all Monaco editors immediately
+					this.plugin.themeManager.applyTheme(value);
 				});
 			});
+
+		new Setting(containerEl)
+			.setName("Transparent background")
+			.setDesc("Make editor background transparent to blend with Obsidian theme")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.transparentBackground)
+					.onChange(async (value) => {
+						this.plugin.settings.transparentBackground = value;
+						await this.plugin.saveSettings();
+						
+						// Apply transparent background immediately
+						this.plugin.themeManager.applyTheme(this.plugin.settings.selectedTheme);
+					})
+			);
+
+		// Theme Loading
+		containerEl.createEl("h3", { text: "Load Custom Themes" });
 
 		new Setting(containerEl)
 			.setName("Import custom theme")
@@ -476,22 +624,5 @@ export class MonacoPrettierSettingTab extends PluginSettingTab {
 						}
 					});
 			});
-
-		new Setting(containerEl)
-			.setName("Transparent background")
-			.setDesc("Make editor background transparent to blend with Obsidian theme")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.transparentBackground)
-					.onChange(async (value) => {
-						this.plugin.settings.transparentBackground = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		containerEl.createEl("p", {
-			text: "Note: Changes to most settings require reopening files to take effect.",
-			cls: "setting-item-description",
-		});
 	}
 }

@@ -3,6 +3,82 @@ import JSZip from "jszip";
 import { VSCodeTheme } from "./ThemeManager";
 
 /**
+ * Strip comments and trailing commas from JSON to make it parseable
+ * Handles comments only outside of string values to avoid breaking JSON structure
+ */
+function stripJsonComments(jsonString: string): string {
+	let result = '';
+	let inString = false;
+	let inSingleLineComment = false;
+	let inMultiLineComment = false;
+	let escapeNext = false;
+	
+	for (let i = 0; i < jsonString.length; i++) {
+		const char = jsonString[i];
+		const nextChar = jsonString[i + 1];
+		
+		// Handle escape sequences in strings
+		if (inString && escapeNext) {
+			result += char;
+			escapeNext = false;
+			continue;
+		}
+		
+		if (inString && char === '\\') {
+			result += char;
+			escapeNext = true;
+			continue;
+		}
+		
+		// Toggle string mode
+		if (char === '"' && !inSingleLineComment && !inMultiLineComment) {
+			inString = !inString;
+			result += char;
+			continue;
+		}
+		
+		// Skip comment content
+		if (inSingleLineComment) {
+			if (char === '\n') {
+				inSingleLineComment = false;
+				result += char; // Keep the newline
+			}
+			continue;
+		}
+		
+		if (inMultiLineComment) {
+			if (char === '*' && nextChar === '/') {
+				inMultiLineComment = false;
+				i++; // Skip the '/'
+			}
+			continue;
+		}
+		
+		// Detect comment start (only outside strings)
+		if (!inString) {
+			if (char === '/' && nextChar === '/') {
+				inSingleLineComment = true;
+				i++; // Skip the second '/'
+				continue;
+			}
+			
+			if (char === '/' && nextChar === '*') {
+				inMultiLineComment = true;
+				i++; // Skip the '*'
+				continue;
+			}
+		}
+		
+		result += char;
+	}
+	
+	// Remove trailing commas before closing braces/brackets
+	result = result.replace(/,(\s*[}\]])/g, '$1');
+	
+	return result;
+}
+
+/**
  * VSIX Package structure
  */
 interface VSIXPackage {
@@ -217,7 +293,9 @@ export class VSIXThemeLoader {
 			}
 
 			const packageContent = await packageFile.async("string");
-			const packageData: VSIXPackage = JSON.parse(packageContent);
+			// Strip comments and trailing commas before parsing
+			const cleanedPackageContent = stripJsonComments(packageContent);
+			const packageData: VSIXPackage = JSON.parse(cleanedPackageContent);
 
 			// Check for theme contributions
 			if (!packageData.contributes?.themes || packageData.contributes.themes.length === 0) {
@@ -226,16 +304,29 @@ export class VSIXThemeLoader {
 
 			// Extract each theme
 			for (const themeContribution of packageData.contributes.themes) {
-				const themePath = `extension/${themeContribution.path}`;
+				// Normalize path - remove leading ./ and handle various formats
+				let normalizedPath = themeContribution.path;
+				if (normalizedPath.startsWith('./')) {
+					normalizedPath = normalizedPath.substring(2);
+				}
+				if (normalizedPath.startsWith('/')) {
+					normalizedPath = normalizedPath.substring(1);
+				}
+				
+				const themePath = `extension/${normalizedPath}`;
 				const themeFile = zip.file(themePath);
 
 				if (!themeFile) {
 					console.warn(`Theme file not found: ${themePath}`);
+					console.warn(`Original path from package.json: ${themeContribution.path}`);
+					console.warn(`Available files in ZIP:`, Object.keys(zip.files).filter(f => f.includes('theme')));
 					continue;
 				}
 
 				const themeContent = await themeFile.async("string");
-				const themeData: VSCodeTheme = JSON.parse(themeContent);
+				// Strip comments from theme JSON as well
+				const cleanedThemeContent = stripJsonComments(themeContent);
+				const themeData: VSCodeTheme = JSON.parse(cleanedThemeContent);
 
 				// Use theme label as name if not specified in JSON
 				if (!themeData.name) {
