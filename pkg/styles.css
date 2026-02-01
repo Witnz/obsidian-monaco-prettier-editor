@@ -1,0 +1,280 @@
+/* Monaco Prettier Editor Styles */
+
+/* Fix view container sizing - prevents 1mm x 1mm pill bug */
+.workspace-leaf-content[data-type="monaco-prettier-editor"] {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+}
+
+.workspace-leaf-content[data-type="monaco-prettier-editor"] .view-content {
+	display: flex;
+	flex: 1 1 auto;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+}
+
+/* Monaco editor container must have explicit sizing */
+.workspace-leaf-content[data-type="monaco-prettier-editor"] .view-content > div {
+	width: 100% !important;
+	height: 100% !important;
+	flex: 1 1 auto;
+}
+
+.monaco-editor .overflow-guard {
+	position: relative;
+}
+
+.monaco-editor .margin {
+	background: transparent !important;
+}
+
+/* Scrollbar styling to match Tokyo Night */
+.theme-dark .monaco-scrollable-element > .scrollbar {
+	background: transparent !important;
+}
+
+.theme-dark .monaco-scrollable-element > .scrollbar > .slider {
+	background: rgba(var(--terminal_black_x), 0.3) !important;
+}
+
+.theme-dark .monaco-scrollable-element > .scrollbar > .slider:hover {
+	background: rgba(var(--terminal_black_x), 0.5) !important;
+}
+
+.theme-dark .monaco-scrollable-element > .scrollbar > .slider:active {
+	background: rgba(var(--terminal_black_x), 0.8) !important;
+}
+
+.theme-light .monaco-scrollable-element > .scrollbar > .slider {
+	background: rgba(var(--comment_x), 0.3) !important;
+}
+
+.theme-light .monaco-scrollable-element > .scrollbar > .slider:hover {
+	background: rgba(var(--comment_x), 0.5) !important;
+}
+
+.theme-light .monaco-scrollable-element > .scrollbar > .slider:active {
+	background: rgba(var(--comment_x), 0.8) !important;
+}
+
+/* Match selection colors with Tokyo Night */
+.theme-dark .monaco-editor .selected-text {
+	background: rgba(var(--blue_x), 0.3) !important;
+}
+
+.theme-light .monaco-editor .selected-text {
+	background: rgba(var(--blue_x), 0.2) !important;
+}
+
+/* Cursor color */
+.theme-dark .monaco-editor .cursor {
+	background: var(--cyan) !important;
+}
+
+.theme-light .monaco-editor .cursor {
+	background: var(--cyan) !important;
+}
+
+/* Line highlight */
+.theme-dark .monaco-editor .current-line {
+	background: var(--bg_highlight_dark) !important;
+	border: none !important;
+}
+
+.theme-light .monaco-editor .current-line {
+	background: var(--bg_highlight) !important;
+	border: none !important;
+}
+
+/* Bracket pair colorization matching Tokyo Night */
+.monaco-editor .bracket-highlighting-0 {
+	color: var(--cyan) !important;
+}
+
+.monaco-editor .bracket-highlighting-1 {
+	color: var(--magenta) !important;
+}
+
+.monaco-editor .bracket-highlighting-2 {
+	color: var(--yellow) !important;
+}
+
+/* Autocomplete widget styling */
+.theme-dark .monaco-editor .suggest-widget {
+	background: var(--bg_dark) !important;
+	border: 1px solid var(--bg_highlight) !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.theme-light .monaco-editor .suggest-widget {
+	background: var(--bg) !important;
+	border: 1px solid var(--bg_highlight) !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.theme-dark .monaco-editor .suggest-widget .monaco-list-row.focused {
+	background: var(--bg_highlight_dark) !important;
+}
+
+.theme-light .monaco-editor .suggest-widget .monaco-list-row.focused {
+	background: var(--bg_highlight) !important;
+}
+
+/* Hover widget styling */
+.theme-dark .monaco-editor .monaco-hover {
+	background: var(--bg_dark) !important;
+	border: 1px solid var(--bg_highlight) !important;
+}
+
+.theme-light .monaco-editor .monaco-hover {
+	background: var(--bg) !important;
+	border: 1px solid var(--bg_highlight) !important;
+}
+
+/* Find widget styling */
+.theme-dark .monaco-editor .find-widget {
+	background: var(--bg_dark) !important;
+	border: 1px solid var(--bg_highlight) !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.theme-light .monaco-editor .find-widget {
+	background: var(--bg) !important;
+	border: 1px solid var(--bg_highlight) !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Match input fields with Tokyo Night */
+.theme-dark .monaco-editor .find-widget input {
+	background: var(--bg) !important;
+	color: var(--fg) !important;
+	border: 1px solid var(--bg_highlight) !important;
+}
+
+.theme-light .monaco-editor .find-widget input {
+	background: var(--bg_dark) !important;
+	color: var(--fg) !important;
+	border: 1px solid var(--bg_highlight) !important;
+}
+
+/* Button styling to match Tokyo Night accent colors */
+.monaco-editor .find-widget .button {
+	background: transparent !important;
+	color: var(--cyan) !important;
+}
+
+.monaco-editor .find-widget .button:hover {
+	background: rgba(var(--cyan_x), 0.1) !important;
+}
+
+/* Minimal theme integration - Cards compatibility */
+.monaco-prettier-container.cards {
+	border-radius: 6px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-dark .monaco-prettier-container.cards:hover {
+	box-shadow: 0 4px 16px rgba(var(--cyan_x), 0.2);
+	transform: translateY(-2px);
+}
+
+.theme-light .monaco-prettier-container.cards:hover {
+	box-shadow: 0 4px 16px rgba(var(--cyan_x), 0.15);
+	transform: translateY(-2px);
+}
+
+/* Full width utility from Minimal theme */
+.monaco-prettier-container.full-width {
+	width: 100%;
+	max-width: 100%;
+}
+
+/* Center utility from Minimal theme */
+.monaco-prettier-container.center {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+/* Responsive design integration */
+@media (max-width: 768px) {
+	.monaco-prettier-container {
+		min-height: 400px;
+	}
+}
+
+/* Focus state with Tokyo Night glow */
+.theme-dark .monaco-prettier-container:focus-within {
+	border-color: var(--cyan);
+	box-shadow: 0 0 0 2px rgba(var(--cyan_x), 0.2);
+}
+
+.theme-light .monaco-prettier-container:focus-within {
+	border-color: var(--cyan);
+	box-shadow: 0 0 0 2px rgba(var(--cyan_x), 0.15);
+}
+
+/* Error squiggles matching Tokyo Night red */
+.monaco-editor .squiggly-error {
+	border-bottom: 2px solid var(--red) !important;
+}
+
+/* Warning squiggles matching Tokyo Night yellow */
+.monaco-editor .squiggly-warning {
+	border-bottom: 2px solid var(--yellow) !important;
+}
+
+/* Info squiggles matching Tokyo Night cyan */
+.monaco-editor .squiggly-info {
+	border-bottom: 2px solid var(--cyan) !important;
+}
+
+/* Matching font with theme */
+.monaco-editor {
+	font-family: var(--font-monospace) !important;
+}
+
+/* Line numbers matching Tokyo Night colors */
+.theme-dark .monaco-editor .line-numbers {
+	color: var(--comment) !important;
+}
+
+.theme-light .monaco-editor .line-numbers {
+	color: var(--comment) !important;
+}
+
+.theme-dark .monaco-editor .current-line ~ .line-numbers {
+	color: var(--fg_dark) !important;
+}
+
+.theme-light .monaco-editor .current-line ~ .line-numbers {
+	color: var(--fg_dark) !important;
+}
+
+/* Transparent background support */
+.monaco-editor.transparent-background .monaco-editor-background,
+.monaco-editor.transparent-background .overflow-guard,
+.monaco-editor.transparent-background .monaco-editor,
+.monaco-editor.transparent-background {
+	background: transparent !important;
+}
+
+/* Ensure text remains visible with transparent background */
+.monaco-editor.transparent-background .view-lines .view-line span {
+	background: inherit;
+}
+/* Create Code File Modal Styles */
+.modal.create-code-file-modal .modal-content {
+	min-width: 400px;
+}
+
+.modal.create-code-file-modal input[type="text"] {
+	width: 100%;
+}
+
+.modal.create-code-file-modal select {
+	min-width: 80px;
+}
