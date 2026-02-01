@@ -11,10 +11,12 @@ A powerful Obsidian plugin that integrates the full Monaco Editor (VS Code's edi
 ### 🎯 Core Capabilities
 - **Full Monaco Editor** - The complete VS Code editor experience in Obsidian
 - **60+ File Types** - JavaScript, TypeScript, Python, Java, C++, Go, Rust, and more
-- **Tree-sitter Parsing** - Professional-grade syntax parsing for JS/TS, Python, JSON, CSS, Go, Rust
+- **Tree-sitter Parsing** - Professional-grade syntax parsing for JS/TS, Python, JSON, CSS, Go, Rust, Java, C++, Bash
 - **Prettier Integration** - Auto-format on save with full configuration support
 - **Custom Themes** - Import VS Code themes (JSON/VSIX) or use built-in presets
-- **Advanced Validation** - Tree-sitter-powered syntax checking or lightweight validators
+- **Inline Error Messages** - VS Code-style inline error display with customizable fonts
+- **Advanced Validation** - Multi-tier validation (Tree-sitter → Monaco → Lightweight)
+- **Real-time Error Updates** - Event-based marker system for instant feedback
 - **Code Folding** - Collapse/expand code blocks
 - **Multi-cursor Editing** - VS Code-style multiple cursors
 - **IntelliSense** - Auto-completion and syntax checking
@@ -116,7 +118,11 @@ Settings are organized into 4 tabs for easy navigation:
 ### General Tab
 - **File Extensions**: Configure which extensions open in Monaco
 - **Validation Options**: Semantic, syntax, and lightweight validation
-- **Tree-sitter Parsing**: Enable advanced syntax parsing (JS/TS, Python, JSON, CSS, Go, Rust)
+- **Tree-sitter Parsing**: Enable advanced syntax parsing with downloadable language parsers
+  - **Supported Languages**: JavaScript, TypeScript, TSX, Python, JSON, CSS, Go, Rust, Java, C++, Bash
+  - **One-Click Downloads**: Install parsers directly from CDN via settings UI
+  - **Automatic Updates**: Parser version management and status tracking
+- **Inline Error Messages**: Customize font family and size for inline error display
 - **Link Previews**: Enable/disable code file link previews
 - **Auto-detect Language**: Automatically detect programming language
 
@@ -190,7 +196,8 @@ npm run dev       # Development mode (watch)
 ### Technologies
 - **Monaco Editor**: 0.45.0
 - **Prettier**: 3.2.4
-- **Tree-sitter**: 0.26.3 (advanced syntax parsing)
+- **Tree-sitter**: 0.21.0 (WASM-based syntax parsing)
+  - Parsers: JavaScript (0.25.0), TypeScript (0.23.2), TSX (0.23.2), Python (0.25.0), JSON (0.24.8), CSS (0.25.0), Go (0.25.0), Rust (0.24.0), Java (0.25.2), C++ (0.25.0), Bash (0.25.0)
 - **js-yaml**: 4.1.1 (YAML validation)
 - **JSZip**: 3.10.1 (VSIX theme loading)
 - **TypeScript**: 4.7.4
@@ -233,7 +240,10 @@ This will enable users with Style Settings to configure Monaco Prettier Editor w
 
 - **Monaco Features**: Some VS Code features (debugging, extensions, terminal) are not available
 - **Large Files**: Files >5MB may experience performance degradation
-- **Validation Scope**: Semantic/syntax validation is limited to TypeScript/JavaScript
+- **Validation Coverage**:
+  - ✅ **Full Validation**: JavaScript, TypeScript, JSON, CSS, HTML, Python, YAML
+  - ⚠️ **Tree-sitter Only**: Go, Rust, Java, C++, Bash (requires tree-sitter enabled + parser download)
+  - ❌ **Not Supported**: SQL (no validator available)
 - **Markdown Conflict**: `.md` files excluded by default to avoid conflicts with Obsidian's native editor
 
 ## 📝 Changelog
